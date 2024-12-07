@@ -11,6 +11,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using EcoVegetables_Api.src.Request.User;
 
 namespace ecovegetables_api.src.Controllers
 {
@@ -305,5 +306,71 @@ namespace ecovegetables_api.src.Controllers
             return Ok(userProfile);
         }
         #endregion
+
+        #region update
+        [HttpPut("update/{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateRequest updateRequest)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(id);
+
+                if (user == null)
+                {
+                    return NotFound(new { message = "Người dùng không tồn tại" });
+                }
+
+                // Cập nhật chỉ các trường được gửi
+                if (!string.IsNullOrEmpty(updateRequest.Fullname))
+                {
+                    user.Fullname = updateRequest.Fullname;
+                }
+
+                if (!string.IsNullOrEmpty(updateRequest.Phone))
+                {
+                    user.Phone = updateRequest.Phone;
+                }
+
+                if (!string.IsNullOrEmpty(updateRequest.Password))
+                {
+                    // Hash mật khẩu trực tiếp tại đây
+                    user.Password = BCrypt.Net.BCrypt.HashPassword(updateRequest.Password);
+                }
+
+                if (!string.IsNullOrEmpty(updateRequest.Avatar))
+                {
+                    user.Avatar = updateRequest.Avatar;
+                }
+
+                if (updateRequest.IsActive.HasValue)
+                {
+                    user.IsActive = updateRequest.IsActive.Value;
+                }
+
+                if (!string.IsNullOrEmpty(updateRequest.Address))
+                {
+                    user.Address = updateRequest.Address;
+                }
+
+                _context.Users.Update(user); // Lưu thay đổi
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Cập nhật thông tin người dùng thành công",
+                    data = user
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Có lỗi xảy ra trong quá trình cập nhật thông tin",
+                    error = ex.Message
+                });
+            }
+        }
+        #endregion
+
     }
 }
