@@ -12,7 +12,7 @@ using ecovegetables_api.src.Data;
 namespace ecovegetables_api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241206151046_init")]
+    [Migration("20241207095836_init")]
     partial class init
     {
         /// <inheritdoc />

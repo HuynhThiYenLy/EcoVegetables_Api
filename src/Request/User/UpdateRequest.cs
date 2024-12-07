@@ -11,7 +11,6 @@ namespace EcoVegetables_Api.src.Request.User
         public string? Phone { get; set; }
         public string? Password { get; set; }
         public string? Avatar { get; set; }
-        public bool? IsActive { get; set; } = true;
         public string? Address { get; set; }
     }
 } 

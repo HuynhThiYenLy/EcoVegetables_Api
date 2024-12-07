@@ -1,4 +1,3 @@
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ecovegetables_api.src.Models;
@@ -321,7 +320,6 @@ namespace ecovegetables_api.src.Controllers
                     return NotFound(new { message = "Người dùng không tồn tại" });
                 }
 
-                // Cập nhật chỉ các trường được gửi
                 if (!string.IsNullOrEmpty(updateRequest.Fullname))
                 {
                     user.Fullname = updateRequest.Fullname;
@@ -334,7 +332,7 @@ namespace ecovegetables_api.src.Controllers
 
                 if (!string.IsNullOrEmpty(updateRequest.Password))
                 {
-                    // Hash mật khẩu trực tiếp tại đây
+                    // Hash mật khẩu nếu được gửi
                     user.Password = BCrypt.Net.BCrypt.HashPassword(updateRequest.Password);
                 }
 
@@ -343,17 +341,12 @@ namespace ecovegetables_api.src.Controllers
                     user.Avatar = updateRequest.Avatar;
                 }
 
-                if (updateRequest.IsActive.HasValue)
-                {
-                    user.IsActive = updateRequest.IsActive.Value;
-                }
-
                 if (!string.IsNullOrEmpty(updateRequest.Address))
                 {
                     user.Address = updateRequest.Address;
                 }
 
-                _context.Users.Update(user); // Lưu thay đổi
+                _context.Users.Update(user); // Lưu thông tin
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -373,7 +366,7 @@ namespace ecovegetables_api.src.Controllers
         }
         #endregion
 
-        #region khóa tài khoản
+        #region lock
         [Authorize]
         [HttpPut("lock/{id}")]
         public async Task<IActionResult> LockUserAccount(int id)
@@ -401,6 +394,24 @@ namespace ecovegetables_api.src.Controllers
                 user.IsActive = false;
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
+
+                // Gửi email thông báo tài khoản bị khóa
+                try
+                {
+                    var emailSent = await _emailService.SendLockNotificationEmailAsync(user.Email, user.Fullname); // Truyền email và tên người dùng
+                    if (emailSent)
+                    {
+                        _logger.LogInformation($"Đã gửi email thông báo khóa tài khoản tới {user.Email}.");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Gửi email thất bại tới {user.Email}.");
+                    }
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError($"Lỗi khi gửi email: {emailEx.Message}");
+                }
 
                 _logger.LogInformation($"Khóa tài khoản thành công cho ID {id}.");
                 return Ok(new { message = "Tài khoản đã được khóa thành công." });
