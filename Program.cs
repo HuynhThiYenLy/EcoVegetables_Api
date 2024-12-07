@@ -6,6 +6,7 @@ using ecovegetables_api.src.Data;
 using ecovegetables_api.src.Services;
 using ecovegetables_api.src.Models;
 using Microsoft.AspNetCore.Identity;
+using ecovegetables_api.src.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -72,6 +73,8 @@ app.UseHttpsRedirection();
 
 // 9. Authentication + Middleware TokenBlacklist
 app.UseMiddleware<TokenMiddleware>(); // Token blacklist middleware
+app.UseMiddleware<CheckAccountMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

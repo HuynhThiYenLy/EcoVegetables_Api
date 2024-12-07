@@ -157,14 +157,6 @@ namespace ecovegetables_api.src.Controllers
         #endregion
 
         #region login
-        [Authorize]
-        [HttpGet("protected")]
-        public IActionResult Protected()
-        {
-            return Ok("This is a protected route.");
-        }
-
-        // Phương thức login
         [HttpPost("login")]
         public async Task<IActionResult> LoginAsync([FromBody] LoginRequest loginRequest)
         {
@@ -173,14 +165,20 @@ namespace ecovegetables_api.src.Controllers
                 // Kiểm tra thông tin đăng nhập
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
 
-                // Kiểm tra nếu user không tồn tại hoặc password là NULL
                 if (user == null || string.IsNullOrEmpty(user.Password) || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
                 {
                     return Unauthorized("Invalid credentials.");
                 }
 
-                // Tạo token
-                var claims = new[] {
+                // Kiểm tra nếu tài khoản đã bị khóa
+                if (!user.IsActive)
+                {
+                    return Forbid("Tài khoản của bạn đã bị khóa.");
+                }
+
+                // Tạo token JWT
+                var claims = new[]
+                {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Email)
         };
@@ -366,10 +364,10 @@ namespace ecovegetables_api.src.Controllers
         }
         #endregion
 
-        #region lock
+        #region toggle lock/unlock
         [Authorize]
-        [HttpPut("lock/{id}")]
-        public async Task<IActionResult> LockUserAccount(int id)
+        [HttpPut("toggle/{id}")]
+        public async Task<IActionResult> ToggleUserAccount(int id)
         {
             try
             {
@@ -383,43 +381,64 @@ namespace ecovegetables_api.src.Controllers
                     return NotFound(new { message = "Người dùng không tồn tại." });
                 }
 
-                // Kiểm tra trạng thái khóa
-                if (!user.IsActive)
+                if (user.IsActive)
                 {
-                    _logger.LogInformation($"Tài khoản ID {id} đã được khóa trước đó.");
-                    return BadRequest(new { message = "Tài khoản đã bị khóa." });
+                    // Khóa tài khoản
+                    user.IsActive = false;
+                    _logger.LogInformation($"Khóa tài khoản ID {id}.");
+
+                    try
+                    {
+                        var emailSent = await _emailService.SendLockNotificationEmailAsync(user.Email, user.Fullname);
+                        if (emailSent)
+                        {
+                            _logger.LogInformation($"Đã gửi email thông báo khóa tài khoản tới {user.Email}.");
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Gửi email khóa thất bại tới {user.Email}.");
+                        }
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError($"Lỗi gửi email khóa: {emailEx.Message}");
+                    }
+                }
+                else
+                {
+                    // Mở khóa tài khoản
+                    user.IsActive = true;
+                    _logger.LogInformation($"Mở khóa tài khoản ID {id}.");
+
+                    try
+                    {
+                        var emailSent = await _emailService.SendLockNotificationEmailAsync(user.Email, user.Fullname);
+                        if (emailSent)
+                        {
+                            _logger.LogInformation($"Đã gửi email thông báo mở khóa tài khoản tới {user.Email}.");
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Gửi email mở khóa thất bại tới {user.Email}.");
+                        }
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError($"Lỗi gửi email mở khóa: {emailEx.Message}");
+                    }
                 }
 
-                // Cập nhật trạng thái khóa
-                user.IsActive = false;
+                // Cập nhật thông tin vào DB
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                // Gửi email thông báo tài khoản bị khóa
-                try
-                {
-                    var emailSent = await _emailService.SendLockNotificationEmailAsync(user.Email, user.Fullname); // Truyền email và tên người dùng
-                    if (emailSent)
-                    {
-                        _logger.LogInformation($"Đã gửi email thông báo khóa tài khoản tới {user.Email}.");
-                    }
-                    else
-                    {
-                        _logger.LogWarning($"Gửi email thất bại tới {user.Email}.");
-                    }
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogError($"Lỗi khi gửi email: {emailEx.Message}");
-                }
-
-                _logger.LogInformation($"Khóa tài khoản thành công cho ID {id}.");
-                return Ok(new { message = "Tài khoản đã được khóa thành công." });
+                _logger.LogInformation($"Cập nhật trạng thái thành công cho ID {id}. Trạng thái mới: {(user.IsActive ? "Đang hoạt động" : "Đã khóa")}");
+                return Ok(new { message = $"Tài khoản đã {(user.IsActive ? "mở khóa" : "khóa")} thành công." });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Lỗi khi khóa tài khoản: {ex.Message}");
-                return StatusCode(500, new { message = "Đã xảy ra lỗi trong quá trình khóa tài khoản." });
+                _logger.LogError($"Lỗi khi thực hiện khóa/mở khóa tài khoản: {ex.Message}");
+                return StatusCode(500, new { message = "Đã xảy ra lỗi trong quá trình khóa hoặc mở khóa tài khoản." });
             }
         }
         #endregion
