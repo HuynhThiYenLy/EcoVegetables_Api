@@ -1,11 +1,10 @@
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ecovegetables_api.src.Models;
 using ecovegetables_api.src.Services;
 using Microsoft.Extensions.Caching.Memory;
 using ecovegetables_api.src.Data;
-using Microsoft.Extensions.Logging;
-using BCrypt.Net;
 using ecovegetables_api.src.Request;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -19,10 +18,10 @@ namespace ecovegetables_api.src.Controllers
     [Route("user")]
     public class UserController : ControllerBase
     {
-        private readonly IConfiguration _configuration;  // Tiêm IConfiguration vào controller
+        private readonly IConfiguration _configuration;  // truy cập vào nhiều file khác như pakage.json
         private readonly EmailService _emailService;
-        private readonly ILogger<UserController> _logger;
-        private readonly IMemoryCache _memoryCache;
+        private readonly ILogger<UserController> _logger; //  ghi log
+        private readonly IMemoryCache _memoryCache; //  lưu trữ thông tin tạm thời
         private readonly AppDbContext _context;
 
         // Cập nhật constructor để tiêm IConfiguration
@@ -169,49 +168,56 @@ namespace ecovegetables_api.src.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> LoginAsync([FromBody] LoginRequest loginRequest)
         {
-            // Kiểm tra thông tin đăng nhập
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
+            try
             {
-                return Unauthorized("Invalid credentials.");
-            }
+                // Kiểm tra thông tin đăng nhập
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
 
-            // Tạo token
-            var claims = new[]{
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Email)
-            };
-
-            // Sử dụng khóa từ cấu hình JWT
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddHours(1),
-                signingCredentials: creds
-            );
-
-            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-            // Trả về thông tin đăng nhập thành công và thêm dữ liệu người dùng
-            var response = new
-            {
-                message = "Login successful",
-                token = tokenString,
-                user = new
+                // Kiểm tra nếu user không tồn tại hoặc password là NULL
+                if (user == null || string.IsNullOrEmpty(user.Password) || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
                 {
-                    user.Id,
-                    user.Fullname,
-                    user.Email,
-                    user.Phone
+                    return Unauthorized("Invalid credentials.");
                 }
-            };
 
-            return Ok(response);
+                // Tạo token
+                var claims = new[] {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Email)
+        };
+
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+                var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+                var token = new JwtSecurityToken(
+                    issuer: _configuration["Jwt:Issuer"],
+                    audience: _configuration["Jwt:Audience"],
+                    claims: claims,
+                    expires: DateTime.Now.AddHours(1),
+                    signingCredentials: creds
+                );
+
+                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+                var response = new
+                {
+                    message = "Login successful",
+                    token = tokenString,
+                    user = new
+                    {
+                        user.Id,
+                        user.Fullname,
+                        user.Email,
+                        user.Phone
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Lỗi trong login: {ex.Message}");
+                return StatusCode(500, "Đã xảy ra lỗi trong quá trình xử lý.");
+            }
         }
         #endregion
 
@@ -219,13 +225,20 @@ namespace ecovegetables_api.src.Controllers
         [HttpPost("logout")]
         public IActionResult Logout()
         {
-            // Xóa token trên client (thực hiện ở phía client, vì JWT là stateless, không cần lưu trữ ở server)
-            // Ở đây chỉ trả về một thông báo logout thành công
+            var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+
+            if (string.IsNullOrEmpty(token))
+            {
+                return BadRequest("Token không hợp lệ.");
+            }
+
+            _memoryCache.Set($"blacklist_{token}", true, TimeSpan.FromMinutes(30)); // Lưu token logout trong 30 phút
+
             return Ok(new { message = "Logout successful." });
         }
         #endregion
 
-        
+
         #region getAll
         [HttpGet("getAll")]
         public async Task<IActionResult> GetAllUsersAsync()
@@ -285,7 +298,8 @@ namespace ecovegetables_api.src.Controllers
                 user.Email,
                 user.Phone,
                 user.CreatedAt,
-                user.UpdatedAt
+                user.UpdatedAt,
+                user.GoogleId
             };
 
             return Ok(userProfile);

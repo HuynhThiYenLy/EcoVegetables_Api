@@ -1,26 +1,26 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
-using ecovegetables_api.src.Data;
-using ecovegetables_api.src.Services;
-using ecovegetables_api.src.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using ecovegetables_api.src.Data;
+using ecovegetables_api.src.Services;
+using ecovegetables_api.src.Models;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Cấu hình Kestrel để lắng nghe tất cả các địa chỉ và cổng 5217
+// 1. Cấu hình Kestrel lắng nghe trên cổng 5217
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Listen(System.Net.IPAddress.Any, 5217); // Lắng nghe trên tất cả các địa chỉ và cổng 5217
+    options.Listen(System.Net.IPAddress.Any, 5217);
 });
 
-// 2. Cấu hình DbContext với Entity Framework
+// 2. Cấu hình DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// 3. Cấu hình các dịch vụ cho JWT
+// 3. Cấu hình JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -32,39 +32,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])) // Đảm bảo khóa đúng
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
         };
     });
 
+// 4. Cấu hình các dịch vụ thêm
+builder.Services.AddScoped<PasswordHasher<User>>();
+builder.Services.AddSingleton<EmailService>();
+builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// 4. Đăng ký các dịch vụ khác
-builder.Services.AddScoped<PasswordHasher<User>>();      // Đăng ký PasswordHasher cho User
-builder.Services.AddSingleton<EmailService>();           // Đăng ký EmailService
-
-// 5. Đăng ký các dịch vụ mặc định
-builder.Services.AddControllers();                      // Thêm các controllers
-builder.Services.AddMemoryCache();                      // Thêm caching
-builder.Services.AddEndpointsApiExplorer();             // Cho Swagger
-builder.Services.AddSwaggerGen();                       // Thêm Swagger
-
-// 6. Cấu hình CORS cho phép mọi nguồn (cross-origin)
+// 5. CORS Middleware
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins", policy =>
     {
-        policy.AllowAnyOrigin()  // Cho phép tất cả các nguồn (Origins)
-              .AllowAnyMethod()  // Cho phép tất cả các phương thức (GET, POST, PUT, DELETE, ...)
-              .AllowAnyHeader(); // Cho phép tất cả các header
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
 });
 
-// Tạo ứng dụng từ builder
+// 6. Build app
 var app = builder.Build();
 
-// 7. Cấu hình CORS phải được đặt trước các middleware khác
+// 7. Middleware CORS
 app.UseCors("AllowAllOrigins");
 
-// 8. Middleware cho phát triển và bảo mật
+// 8. Swagger Dev Only
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -73,12 +70,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// 9. Đảm bảo bạn gọi UseAuthentication và UseAuthorization sau khi cấu hình các middleware khác
-app.UseAuthentication(); // Đảm bảo bạn gọi UseAuthentication
-app.UseAuthorization();  // Đảm bảo bạn gọi UseAuthorization
+// 9. Authentication + Middleware TokenBlacklist
+app.UseMiddleware<TokenMiddleware>(); // Token blacklist middleware
+app.UseAuthentication();
+app.UseAuthorization();
 
-// 10. Ánh xạ các route từ controllers
+// 10. Map Route
 app.MapControllers();
 
-// 11. Chạy ứng dụng
+// 11. Run application
 app.Run();

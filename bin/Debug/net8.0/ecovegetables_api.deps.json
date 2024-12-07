@@ -18,6 +18,7 @@
           "Microsoft.EntityFrameworkCore.InMemory": "9.0.0",
           "Microsoft.EntityFrameworkCore.SqlServer": "9.0.0",
           "Microsoft.EntityFrameworkCore.Tools": "9.0.0",
+          "Microsoft.Extensions.Caching.Memory": "9.0.0",
           "Microsoft.IdentityModel.Tokens": "8.2.1",
           "Swashbuckle.AspNetCore": "7.0.0",
           "System.IdentityModel.Tokens.Jwt": "8.2.1"

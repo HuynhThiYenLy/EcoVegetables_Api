@@ -20,9 +20,9 @@ namespace ecovegetables_api.src.Models
         public string GoogleId { get; set; }
 
         // Ghi đè phương thức ToString để log toàn bộ thông tin của đối tượng
-        public override string ToString()
-        {
-            return $"Id: {Id}, Fullname: {Fullname}, Email: {Email}, Phone: {Phone}, Avatar: {Avatar ?? "N/A"}, Address: {Address ?? "N/A"}, IsActive: {IsActive}, CreatedAt: {CreatedAt}, UpdatedAt: {UpdatedAt}, GoogleId: {GoogleId ?? "N/A"}";
-        }
+        // public override string ToString()
+        // {
+        //     return $"Id: {Id}, Fullname: {Fullname}, Email: {Email}, Phone: {Phone}, Avatar: {Avatar ?? "N/A"}, Address: {Address ?? "N/A"}, IsActive: {IsActive}, CreatedAt: {CreatedAt}, UpdatedAt: {UpdatedAt}, GoogleId: {GoogleId ?? "N/A"}";
+        // }
     }
 }

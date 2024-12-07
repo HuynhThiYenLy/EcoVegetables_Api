@@ -175,3 +175,4 @@ E:\Portfolio_CV\EcoVegetables\ecovegetables_api\obj\Debug\net8.0\ref\ecovegetabl
 E:\Portfolio_CV\EcoVegetables\ecovegetables_api\bin\Debug\net8.0\Microsoft.AspNetCore.Server.Kestrel.Https.dll
 E:\Portfolio_CV\EcoVegetables\ecovegetables_api\bin\Debug\net8.0\Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions.dll
 E:\Portfolio_CV\EcoVegetables\ecovegetables_api\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+E:\Portfolio_CV\EcoVegetables\EcoVegetables_Api\obj\Debug\net8.0\ecovegetables_api.sourcelink.json
