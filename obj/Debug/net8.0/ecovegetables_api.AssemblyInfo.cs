@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ecovegetables_api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+88b39bfcc800c35232966d0991e40a314f704116")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+70a811a233f43bf3490bf9cebf904a9e4d640703")]
 [assembly: System.Reflection.AssemblyProductAttribute("ecovegetables_api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ecovegetables_api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -308,6 +308,7 @@ namespace ecovegetables_api.src.Controllers
         #endregion
 
         #region update
+        [Authorize]
         [HttpPut("update/{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateRequest updateRequest)
         {
@@ -372,5 +373,44 @@ namespace ecovegetables_api.src.Controllers
         }
         #endregion
 
+        #region khóa tài khoản
+        [Authorize]
+        [HttpPut("lock/{id}")]
+        public async Task<IActionResult> LockUserAccount(int id)
+        {
+            try
+            {
+                // Tìm người dùng theo ID
+                var user = await _context.Users.FindAsync(id);
+
+                // Kiểm tra xem người dùng có tồn tại không
+                if (user == null)
+                {
+                    _logger.LogWarning($"Người dùng với ID {id} không tồn tại.");
+                    return NotFound(new { message = "Người dùng không tồn tại." });
+                }
+
+                // Kiểm tra trạng thái khóa
+                if (!user.IsActive)
+                {
+                    _logger.LogInformation($"Tài khoản ID {id} đã được khóa trước đó.");
+                    return BadRequest(new { message = "Tài khoản đã bị khóa." });
+                }
+
+                // Cập nhật trạng thái khóa
+                user.IsActive = false;
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Khóa tài khoản thành công cho ID {id}.");
+                return Ok(new { message = "Tài khoản đã được khóa thành công." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Lỗi khi khóa tài khoản: {ex.Message}");
+                return StatusCode(500, new { message = "Đã xảy ra lỗi trong quá trình khóa tài khoản." });
+            }
+        }
+        #endregion
     }
 }
