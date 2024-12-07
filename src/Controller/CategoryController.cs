@@ -110,14 +110,10 @@ namespace EcoVegetables_Api.src.Controller
                 return StatusCode(500, new { message = "Có lỗi xảy ra trong quá trình cập nhật thông tin", error = ex.Message });
             }
         }
-
         #endregion
 
-        #region Xóa danh mục
-        /// <summary>
-        /// Xóa danh mục
-        /// </summary>
-        [HttpDelete("delete-category/{id}")]
+        #region delete
+        [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
             try
@@ -136,7 +132,9 @@ namespace EcoVegetables_Api.src.Controller
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Có lỗi xảy ra trong quá trình xóa thông tin", error = ex.Message });
+                return StatusCode(500, new { message = "Có lỗi xảy ra trong quá trình xóa thông tin",
+                    error = ex.InnerException?.Message ?? ex.Message
+                });
             }
         }
         #endregion

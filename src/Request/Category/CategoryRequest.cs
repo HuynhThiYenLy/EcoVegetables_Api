@@ -7,7 +7,7 @@ namespace EcoVegetables_Api.src.Request.Category
 {
     public class UpdateCategoryRequest
     {
-        public string? Name { get; set; } // Có thể null
-        public int? ParentId { get; set; } // Có thể null
+        public string? Name { get; set; }
+        public int? ParentId { get; set; }
     }
 }
