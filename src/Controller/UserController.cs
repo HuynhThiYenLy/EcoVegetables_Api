@@ -20,14 +20,13 @@ namespace ecovegetables_api.src.Controllers
     {
         private readonly IConfiguration _configuration;  // truy cập vào nhiều file khác như pakage.json
         private readonly EmailService _emailService;
-        private readonly ILogger<UserController> _logger; //  ghi log
-        private readonly IMemoryCache _memoryCache; //  lưu trữ thông tin tạm thời
+        private readonly ILogger<UserController> _logger; 
+        private readonly IMemoryCache _memoryCache; 
         private readonly AppDbContext _context;
 
-        // Cập nhật constructor để tiêm IConfiguration
         public UserController(IConfiguration configuration, EmailService emailService, ILogger<UserController> logger, IMemoryCache memoryCache, AppDbContext context)
         {
-            _configuration = configuration;  // Lưu IConfiguration vào trường
+            _configuration = configuration;  
             _emailService = emailService;
             _logger = logger;
             _memoryCache = memoryCache;
@@ -47,16 +46,18 @@ namespace ecovegetables_api.src.Controllers
         [HttpPost("add")]
         public async Task<IActionResult> AddUserAsync([FromBody] RegisterRequest registerRequest)
         {
-            // Kiểm tra nếu email đã tồn tại trong hệ thống
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == registerRequest.Email);
             if (existingUser != null)
             {
-                return BadRequest("Email đã tồn tại.");
+                return BadRequest(new
+                {
+                    code = "EMAIL_EXISTS",
+                    message = "Email đã tồn tại."
+                });
             }
 
-            var otp = GenerateOtp(); // Tạo OTP
+            var otp = GenerateOtp(); 
 
-            // Tạo đối tượng người dùng nhưng chưa băm mật khẩu
             var userAccount = new User
             {
                 Fullname = registerRequest.Fullname,
@@ -68,14 +69,11 @@ namespace ecovegetables_api.src.Controllers
                 UpdatedAt = DateTime.UtcNow
             };
 
-            // Lưu OTP tạm thời vào bộ nhớ
             var otpExpiration = DateTime.UtcNow.AddMinutes(5);
             _memoryCache.Set($"otp_{registerRequest.Email}", otp, otpExpiration);
 
-            // Lưu thông tin người dùng vào bộ nhớ cache tạm thời
             _memoryCache.Set($"user_{registerRequest.Email}", userAccount, otpExpiration);
 
-            // Gửi OTP qua email
             var emailSent = await _emailService.SendOtpEmailAsync(registerRequest.Email, otp);
 
             if (emailSent)
@@ -84,12 +82,28 @@ namespace ecovegetables_api.src.Controllers
                 _logger.LogInformation($"Password: {registerRequest.Password}");
                 _logger.LogInformation($"OTP generated: {otp}");
                 _logger.LogInformation($"OTP sent successfully to {registerRequest.Email}");
-                return Ok(new { message = "User created successfully and OTP sent!", user = userAccount });
+
+                return Ok(new
+                {
+                    code = "USER_CREATED",
+                    message = "Người dùng được tạo thành công. OTP đã được gửi!",
+                    user = new
+                    {
+                        userAccount.Fullname,
+                        userAccount.Email,
+                        userAccount.Phone,
+                        IsActive = userAccount.IsActive
+                    }
+                });
             }
             else
             {
                 _logger.LogError($"Failed to send OTP to {registerRequest.Email}");
-                return BadRequest("Failed to send OTP.");
+                return BadRequest(new
+                {
+                    code = "OTP_SEND_FAILED",
+                    message = "Gửi OTP thất bại."
+                });
             }
         }
         #endregion
@@ -156,27 +170,119 @@ namespace ecovegetables_api.src.Controllers
         }
         #endregion
 
+        #region resendOtp
+        [HttpPost("resendOtp")]
+        public async Task<IActionResult> ResendOtp([FromBody] ResendOtpRequest resendOtpRequest)
+        {
+            if (string.IsNullOrEmpty(resendOtpRequest.Email))
+            {
+                return BadRequest(new { message = "Email không được để trống." });
+            }
+
+            // Lấy người dùng từ bộ nhớ cache tạm thời
+            if (_memoryCache.TryGetValue($"user_{resendOtpRequest.Email}", out User users))
+            {
+                var otp = GenerateOtp(); // Tạo OTP mới
+                var otpExpiration = DateTime.UtcNow.AddMinutes(5); // Thời hạn 5 phút
+
+                // Cập nhật OTP mới vào bộ nhớ cache
+                _memoryCache.Set($"otp_{resendOtpRequest.Email}", otp, otpExpiration);
+
+                // Gửi OTP qua email
+                var emailSent = await _emailService.SendOtpEmailAsync(resendOtpRequest.Email, otp);
+
+                if (emailSent)
+                {
+                    _logger.LogInformation($"OTP mới: {otp} đã được gửi tới {resendOtpRequest.Email}");
+                    return Ok(new
+                    {
+                        message = "OTP đã được gửi lại thành công.",
+                        email = resendOtpRequest.Email
+                    });
+                }
+                else
+                {
+                    _logger.LogError($"Gửi OTP mới thất bại tới {resendOtpRequest.Email}");
+                    return StatusCode(500, new { message = "Không thể gửi OTP." });
+                }
+            }
+            else
+            {
+                _logger.LogWarning($"Không tìm thấy người dùng với email {resendOtpRequest.Email} trong bộ nhớ tạm.");
+                return BadRequest(new { message = "Không tìm thấy người dùng hoặc OTP đã hết hạn." });
+            }
+        }
+        #endregion
+
         #region login
         [HttpPost("login")]
         public async Task<IActionResult> LoginAsync([FromBody] LoginRequest loginRequest)
         {
             try
             {
-                // Kiểm tra thông tin đăng nhập
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
-
-                if (user == null || string.IsNullOrEmpty(user.Password) || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
+                // Kiểm tra input
+                if (string.IsNullOrEmpty(loginRequest.Email) || string.IsNullOrEmpty(loginRequest.Password))
                 {
-                    return Unauthorized("Invalid credentials.");
+                    return BadRequest(new
+                    {
+                        status = 400,
+                        error = "Thông tin không hợp lệ",
+                        details = "Email và mật khẩu không được để trống."
+                    });
                 }
 
-                // Kiểm tra nếu tài khoản đã bị khóa
+                // Truy vấn người dùng từ database
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
+                if (user == null)
+                {
+                    _logger.LogWarning($"Đăng nhập thất bại: Email {loginRequest.Email} không tồn tại.");
+                    return BadRequest(new
+                    {
+                        status = 400,
+                        error = "Thông tin không hợp lệ",
+                        details = "Tài khoản không tồn tại."
+                    });
+                }
+
+                // Kiểm tra mật khẩu
+                if (string.IsNullOrEmpty(user.Password) || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
+                {
+                    _logger.LogWarning($"Đăng nhập thất bại: Sai mật khẩu cho email {loginRequest.Email}.");
+                    return BadRequest(new
+                    {
+                        status = 400,
+                        error = "Thông tin không hợp lệ",
+                        details = "Mật khẩu sai."
+                    });
+                }
+
+                // Kiểm tra trạng thái tài khoản
                 if (!user.IsActive)
                 {
-                    return Forbid("Tài khoản của bạn đã bị khóa.");
+                    _logger.LogWarning($"Tài khoản bị khóa: Email {user.Email}");
+                    return BadRequest(new
+                    {
+                        status = 400,
+                        error = "Tài khoản bị khóa",
+                        details = "Tài khoản của bạn đã bị khóa."
+                    });
                 }
 
-                // Tạo token JWT
+                // Kiểm tra cấu hình JWT
+                if (string.IsNullOrEmpty(_configuration["Jwt:Key"]) ||
+                    string.IsNullOrEmpty(_configuration["Jwt:Issuer"]) ||
+                    string.IsNullOrEmpty(_configuration["Jwt:Audience"]))
+                {
+                    _logger.LogError("Cấu hình JWT bị thiếu.");
+                    return StatusCode(500, new
+                    {
+                        status = 500,
+                        error = "Lỗi cấu hình",
+                        details = "Cấu hình JWT không đầy đủ."
+                    });
+                }
+
+                // Tạo JWT
                 var claims = new[]
                 {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -213,8 +319,13 @@ namespace ecovegetables_api.src.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Lỗi trong login: {ex.Message}");
-                return StatusCode(500, "Đã xảy ra lỗi trong quá trình xử lý.");
+                _logger.LogError($"Lỗi trong login: {ex.Message} - StackTrace: {ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    status = 500,
+                    error = "Lỗi hệ thống",
+                    details = "Đã xảy ra lỗi trong quá trình xử lý."
+                });
             }
         }
         #endregion

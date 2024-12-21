@@ -6038,11 +6038,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\Portfolio_CV\\EcoVegetables\\EcoVegetables_Api\\ecovegetables_api.csproj",
+      "projectUniqueName": "E:\\Portfolio_CV\\EcoVegetables\\ecovegetables_api\\ecovegetables_api.csproj",
       "projectName": "ecovegetables_api",
-      "projectPath": "E:\\Portfolio_CV\\EcoVegetables\\EcoVegetables_Api\\ecovegetables_api.csproj",
+      "projectPath": "E:\\Portfolio_CV\\EcoVegetables\\ecovegetables_api\\ecovegetables_api.csproj",
       "packagesPath": "C:\\Users\\PC\\.nuget\\packages\\",
-      "outputPath": "E:\\Portfolio_CV\\EcoVegetables\\EcoVegetables_Api\\obj\\",
+      "outputPath": "E:\\Portfolio_CV\\EcoVegetables\\ecovegetables_api\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\PC\\AppData\\Roaming\\NuGet\\NuGet.Config",
