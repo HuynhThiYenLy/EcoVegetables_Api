@@ -177,3 +177,4 @@ E:\EcoVegetable\ecovegetables_api\obj\Debug\net8.0\refint\ecovegetables_api.dll
 E:\EcoVegetable\ecovegetables_api\obj\Debug\net8.0\ecovegetables_api.pdb
 E:\EcoVegetable\ecovegetables_api\obj\Debug\net8.0\ecovegetables_api.genruntimeconfig.cache
 E:\EcoVegetable\ecovegetables_api\obj\Debug\net8.0\ref\ecovegetables_api.dll
+E:\EcoVegetable\ecovegetables_api\obj\Debug\net8.0\ecovegetables_api.sourcelink.json
