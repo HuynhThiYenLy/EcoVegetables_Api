@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\ecovegetables_api.props" />
+</Project>
